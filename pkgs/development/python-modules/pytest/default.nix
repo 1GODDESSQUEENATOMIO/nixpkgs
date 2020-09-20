@@ -3,6 +3,7 @@
 , attrs
 , funcsigs
 , hypothesis
+, iniconfig
 , mock
 , more-itertools
 , packaging
@@ -14,32 +15,44 @@
 , setuptools
 , setuptools_scm
 , six
+, toml
 , wcwidth
 , writeText
 }:
 
 buildPythonPackage rec {
-  version = "5.4.2";
+  version = "6.0.1";
   pname = "pytest";
 
   disabled = !isPy3k;
+
+  src = fetchPypi {
+    inherit pname version;
+    sha256 = "85228d75db9f45e06e57ef9bf4429267f81ac7c0d742cc9ed63d09886a9fe6f4";
+  };
+
+  checkInputs = [ hypothesis pygments ];
+  nativeBuildInputs = [ setuptools_scm ];
+  propagatedBuildInputs = [
+    atomicwrites
+    attrs
+    iniconfig
+    more-itertools
+    packaging
+    pluggy
+    py
+    setuptools
+    six
+    toml
+    wcwidth
+  ] ++ stdenv.lib.optionals (pythonOlder "3.6") [ pathlib2 ];
+
+  doCheck = !isPyPy; # https://github.com/pytest-dev/pytest/issues/3460
 
   preCheck = ''
     # don't test bash builtins
     rm testing/test_argcomplete.py
   '';
-
-  src = fetchPypi {
-    inherit pname version;
-    sha256 = "eb2b5e935f6a019317e455b6da83dd8650ac9ffd2ee73a7b657a30873d67a698";
-  };
-
-  checkInputs = [ hypothesis pygments ];
-  nativeBuildInputs = [ setuptools_scm ];
-  propagatedBuildInputs = [ attrs py setuptools six pluggy more-itertools atomicwrites wcwidth packaging ]
-    ++ stdenv.lib.optionals (pythonOlder "3.6") [ pathlib2 ];
-
-  doCheck = !isPyPy; # https://github.com/pytest-dev/pytest/issues/3460
 
   # Ignored file https://github.com/pytest-dev/pytest/pull/5605#issuecomment-522243929
   checkPhase = ''

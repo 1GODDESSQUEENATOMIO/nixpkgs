@@ -17,11 +17,11 @@
 
 buildPythonPackage rec {
   pname = "virtualenv";
-  version = "20.0.21";
+  version = "20.0.31";
 
   src = fetchPypi {
     inherit pname version;
-    sha256 = "1kxnxxwa25ghlkpyrxa8pi49v87b7ps2gyla7d1h6kbz9sfn45m1";
+    sha256 = "43add625c53c596d38f971a465553f6318decc39d98512bc100fa1b1e839c8dc";
   };
 
   nativeBuildInputs = [
@@ -41,6 +41,10 @@ buildPythonPackage rec {
     importlib-resources
   ] ++ lib.optionals (pythonOlder "3.8") [
     importlib-metadata
+  ];
+
+  patches = lib.optionals (isPy27) [
+    ./0001-Check-base_prefix-and-base_exec_prefix-for-Python-2.patch
   ];
 
   meta = {

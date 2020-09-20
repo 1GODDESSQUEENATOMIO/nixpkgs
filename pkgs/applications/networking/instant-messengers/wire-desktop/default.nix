@@ -5,10 +5,12 @@
 , makeDesktopItem
 , makeWrapper
 , stdenv
+, lib
 , udev
 , wrapGAppsHook
 , cpio
 , xar
+, libdbusmenu
 }:
 
 let
@@ -20,13 +22,13 @@ let
   pname = "wire-desktop";
 
   version = {
-    x86_64-darwin = "3.17.3666";
-    x86_64-linux = "3.17.2924";
+    x86_64-darwin = "3.19.3799";
+    x86_64-linux = "3.19.2928";
   }.${system} or throwSystem;
 
   sha256 = {
-    x86_64-darwin = "0r3ckfrdx0ah6wn364ii1q1laya2nmmfz9jsikc6ss28lijb6ipn";
-    x86_64-linux = "16f8zawdx7dyrb8hp3fd2j821jj7jlan60knmdlrrk84phlc9ldd";
+    x86_64-darwin = "1sv8n4g1pd4nwpwsg0m61zhrfjlh7sj29rnh46xjw1qg332g6cw9";
+    x86_64-linux = "038h1j59qfj5ckaxk823qpfflxay47v0jrqc0hmrdmnd2y59dpx7";
   }.${system} or throwSystem;
 
   meta = with stdenv.lib; {
@@ -107,7 +109,8 @@ let
     '';
 
     runtimeDependencies = [
-      udev.lib
+      (lib.getLib udev)
+      libdbusmenu
     ];
 
     postFixup = ''

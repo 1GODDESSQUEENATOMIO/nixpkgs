@@ -2,13 +2,13 @@
 , src, unpackPhase ? null, patches ? []
 , extraNativeBuildInputs ? [], extraConfigureFlags ? [], extraMakeFlags ? [] }:
 
-{ lib, stdenv, pkgconfig, pango, perl, python2, python3, zip, libIDL
+{ lib, stdenv, pkgconfig, pango, perl, python2, python3, zip
 , libjpeg, zlib, dbus, dbus-glib, bzip2, xorg
 , freetype, fontconfig, file, nspr, nss, libnotify
 , yasm, libGLU, libGL, sqlite, unzip, makeWrapper
 , hunspell, libXdamage, libevent, libstartup_notification
-, libvpx, libvpx_1_8
-, icu, libpng, jemalloc, glib
+, libvpx_1_8
+, icu67, libpng, jemalloc, glib
 , autoconf213, which, gnused, cargo, rustc, llvmPackages
 , rust-cbindgen, nodejs, nasm, fetchpatch
 , debugBuild ? false
@@ -51,7 +51,7 @@
 # https://github.com/NixOS/nixpkgs/issues/31843#issuecomment-346372756 we
 # have permission to use the official firefox branding.
 #
-# Fur purposes of documentation the statement of @sylvestre:
+# For purposes of documentation the statement of @sylvestre:
 # > As the person who did part of the work described in the LWN article
 # > and release manager working for Mozilla, I can confirm the statement
 # > that I made in
@@ -94,11 +94,6 @@ stdenv.mkDerivation ({
 
   patches = [
     ./env_var_for_system_dir.patch
-    # Fix for NSS 3.52 (add missing CK_GCM_PARMS field)
-    (fetchpatch {
-      url = "https://hg.mozilla.org/mozilla-central/raw-rev/463069687b3d";
-      sha256 = "00yhz67flnkww3rbry0kqn6z6bm7vxfb2sgf7qikgbjcm3ysvpsm";
-    })
   ]
   ++ patches;
 
@@ -109,23 +104,21 @@ stdenv.mkDerivation ({
   patchFlags = [ "-p1" "-l" ];
 
   buildInputs = [
-    gtk2 perl zip libIDL libjpeg zlib bzip2
+    gtk2 perl zip libjpeg zlib bzip2
     dbus dbus-glib pango freetype fontconfig xorg.libXi xorg.libXcursor
     xorg.libX11 xorg.libXrender xorg.libXft xorg.libXt file
     libnotify xorg.pixman yasm libGLU libGL
-    xorg.libXScrnSaver xorg.xorgproto
+    xorg.xorgproto
     xorg.libXext unzip makeWrapper
     libevent libstartup_notification /* cairo */
-    icu libpng jemalloc glib
-    nasm
+    libpng jemalloc glib
+    nasm icu67 libvpx_1_8
     # >= 66 requires nasm for the AV1 lib dav1d
     # yasm can potentially be removed in future versions
     # https://bugzilla.mozilla.org/show_bug.cgi?id=1501796
     # https://groups.google.com/forum/#!msg/mozilla.dev.platform/o-8levmLU80/SM_zQvfzCQAJ
     nspr nss
   ]
-  ++ lib.optionals  (lib.versionOlder ffversion "75") [ libvpx sqlite ]
-  ++ lib.optional  (lib.versionAtLeast ffversion "75.0") libvpx_1_8
   ++ lib.optional  alsaSupport alsaLib
   ++ lib.optional  pulseaudioSupport libpulseaudio # only headers are needed
   ++ lib.optional  gtk3Support gtk3
@@ -135,16 +128,21 @@ stdenv.mkDerivation ({
                                      AVFoundation MediaToolbox CoreLocation
                                      Foundation libobjc AddressBook cups ];
 
-  NIX_CFLAGS_COMPILE = toString ([
+  NIX_CFLAGS_COMPILE = toString [
     "-I${glib.dev}/include/gio-unix-2.0"
     "-I${nss.dev}/include/nss"
-  ]
-  ++ lib.optional (pname == "firefox-esr" && lib.versionOlder ffversion "69")
-    "-Wno-error=format-security");
+  ];
 
   postPatch = ''
-    substituteInPlace third_party/prio/prio/rand.c --replace 'nspr/prinit.h' 'prinit.h'
     rm -rf obj-x86_64-pc-linux-gnu
+  '' + lib.optionalString (lib.versionAtLeast ffversion "80") ''
+    substituteInPlace dom/system/IOUtils.h \
+      --replace '#include "nspr/prio.h"'          '#include "prio.h"'
+
+    substituteInPlace dom/system/IOUtils.cpp \
+      --replace '#include "nspr/prio.h"'          '#include "prio.h"' \
+      --replace '#include "nspr/private/pprio.h"' '#include "private/pprio.h"' \
+      --replace '#include "nspr/prtypes.h"'       '#include "prtypes.h"'
   '';
 
   nativeBuildInputs =
@@ -181,9 +179,10 @@ stdenv.mkDerivation ({
     # included we need to look in a few places.
     # TODO: generalize this process for other use-cases.
 
-    BINDGEN_CFLAGS="$(< ${stdenv.cc}/nix-support/libc-cflags) \
+    BINDGEN_CFLAGS="$(< ${stdenv.cc}/nix-support/libc-crt1-cflags) \
+      $(< ${stdenv.cc}/nix-support/libc-cflags) \
       $(< ${stdenv.cc}/nix-support/cc-cflags) \
-      ${stdenv.cc.default_cxx_stdlib_compile} \
+      $(< ${stdenv.cc}/nix-support/libcxx-cxxflags) \
       ${lib.optionalString stdenv.cc.isClang "-idirafter ${stdenv.cc.cc}/lib/clang/${lib.getVersion stdenv.cc.cc}/include"} \
       ${lib.optionalString stdenv.cc.isGNU "-isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc} -isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc}/${stdenv.hostPlatform.config}"} \
       $NIX_CFLAGS_COMPILE"
@@ -206,7 +205,6 @@ stdenv.mkDerivation ({
     "--enable-application=browser"
     "--with-system-jpeg"
     "--with-system-zlib"
-    "--with-system-bz2"
     "--with-system-libevent"
     "--with-system-libvpx"
     "--with-system-png" # needs APNG support
@@ -214,24 +212,17 @@ stdenv.mkDerivation ({
     "--enable-system-ffi"
     "--enable-system-pixman"
     #"--enable-system-cairo"
-    "--enable-startup-notification"
-    #"--enable-content-sandbox" # TODO: probably enable after 54
     "--disable-tests"
     "--disable-necko-wifi" # maybe we want to enable this at some point
     "--disable-updater"
     "--enable-jemalloc"
-    "--disable-gconf"
     "--enable-default-toolkit=${default-toolkit}"
     "--with-libclang-path=${llvmPackages.libclang}/lib"
     "--with-clang-path=${llvmPackages.clang}/bin/clang"
     "--with-system-nspr"
     "--with-system-nss"
   ]
-  ++ lib.optional (lib.versionOlder ffversion "75") "--enable-system-sqlite"
   ++ lib.optional (stdenv.isDarwin) "--disable-xcode-checks"
-  ++ lib.optionals (lib.versionOlder ffversion "69") [
-    "--enable-webrender=build"
-  ]
 
   ++ flag alsaSupport "alsa"
   ++ flag pulseaudioSupport "pulseaudio"
@@ -279,6 +270,7 @@ stdenv.mkDerivation ({
     patchelf --set-rpath "${lib.getLib libnotify
       }/lib:$(patchelf --print-rpath "$out"/lib/${binaryName}*/libxul.so)" \
         "$out"/lib/${binaryName}*/libxul.so
+    patchelf --add-needed ${xorg.libXScrnSaver.out}/lib/libXss.so $out/lib/${binaryName}/${binaryName}
   '';
 
   doInstallCheck = true;
@@ -298,16 +290,13 @@ stdenv.mkDerivation ({
     inherit execdir;
     inherit browserName;
   } // lib.optionalAttrs gtk3Support { inherit gtk3; };
-} //
-lib.optionalAttrs (lib.versionAtLeast ffversion "74") {
-  hardeningDisable = [ "format" ]; # -Werror=format-security
-} //
-# the build system verifies checksums of the bundled rust sources
-# ./third_party/rust is be patched by our libtool fixup code in stdenv
-# unfortunately we can't just set this to `false` when we do not want it.
-# See https://github.com/NixOS/nixpkgs/issues/77289 for more details
 
-lib.optionalAttrs (lib.versionAtLeast ffversion "72") {
+  hardeningDisable = [ "format" ]; # -Werror=format-security
+
+  # the build system verifies checksums of the bundled rust sources
+  # ./third_party/rust is be patched by our libtool fixup code in stdenv
+  # unfortunately we can't just set this to `false` when we do not want it.
+  # See https://github.com/NixOS/nixpkgs/issues/77289 for more details
   # Ideally we would figure out how to tell the build system to not
   # care about changed hashes as we are already doing that when we
   # fetch the sources. Any further modifications of the source tree

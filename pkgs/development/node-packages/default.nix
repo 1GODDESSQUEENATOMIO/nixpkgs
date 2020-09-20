@@ -39,27 +39,16 @@ let
       meta.broken = since "12";
     };
 
-    dnschain = super.dnschain.override {
-      buildInputs = [ pkgs.makeWrapper super.coffee-script ];
-      postInstall = ''
-        wrapProgram $out/bin/dnschain --suffix PATH : ${pkgs.openssl.bin}/bin
-      '';
-      meta.broken = since "14";
-    };
+    # NOTE: this is a stub package to fetch npm dependencies for
+    # ../../applications/video/epgstation
+    epgstation = super."epgstation-../../applications/video/epgstation".override (drv: {
+      meta = drv.meta // {
+        broken = true; # not really broken, see the comment above
+      };
+    });
 
     bitwarden-cli = pkgs.lib.overrideDerivation super."@bitwarden/cli" (drv: {
       name = "bitwarden-cli-${drv.version}";
-    });
-
-    ios-deploy = super.ios-deploy.override (drv: {
-      nativeBuildInputs = drv.nativeBuildInputs or [] ++ [ pkgs.buildPackages.rsync ];
-      preRebuild = ''
-        LD=$CC
-        tmp=$(mktemp -d)
-        ln -s /usr/bin/xcodebuild $tmp
-        export PATH="$PATH:$tmp"
-      '';
-      meta.platforms = [ pkgs.lib.platforms.darwin ];
     });
 
     fast-cli = super."fast-cli-1.x".override {
@@ -79,6 +68,36 @@ let
       nativeBuildInputs = drv.nativeBuildInputs or [] ++ [ pkgs.psc-package self.pulp ];
     });
 
+    mirakurun = super.mirakurun.override rec {
+      nativeBuildInputs = with pkgs; [ makeWrapper ];
+      postInstall = let
+        runtimeDeps = [ nodejs ] ++ (with pkgs; [ bash which v4l_utils ]);
+      in
+      ''
+        substituteInPlace $out/lib/node_modules/mirakurun/processes.json \
+          --replace "/usr/local" ""
+
+        # XXX: Files copied from the Nix store are non-writable, so they need
+        # to be given explicit write permissions
+        substituteInPlace $out/lib/node_modules/mirakurun/lib/Mirakurun/config.js \
+          --replace 'fs.copyFileSync("config/server.yml", path);' \
+                    'fs.copyFileSync("config/server.yml", path); fs.chmodSync(path, 0o644);' \
+          --replace 'fs.copyFileSync("config/tuners.yml", path);' \
+                    'fs.copyFileSync("config/tuners.yml", path); fs.chmodSync(path, 0o644);' \
+          --replace 'fs.copyFileSync("config/channels.yml", path);' \
+                    'fs.copyFileSync("config/channels.yml", path); fs.chmodSync(path, 0o644);'
+
+        # XXX: The original mirakurun command uses PM2 to manage the Mirakurun
+        # server.  However, we invoke the server directly and let systemd
+        # manage it to avoid complication. This is okay since no features
+        # unique to PM2 is currently being used.
+        makeWrapper ${nodejs}/bin/npm $out/bin/mirakurun \
+          --add-flags "start" \
+          --run "cd $out/lib/node_modules/mirakurun" \
+          --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps}
+      '';
+    };
+
     node-inspector = super.node-inspector.override {
       buildInputs = [ self.node-pre-gyp ];
       meta.broken = since "10";
@@ -92,7 +111,7 @@ let
     };
 
     node-red = super.node-red.override {
-      meta.broken = since "10";
+      buildInputs = [ self.node-pre-gyp ];
     };
 
     pnpm = super.pnpm.override {
@@ -139,8 +158,42 @@ let
       '';
     };
 
+    tsun = super.tsun.overrideAttrs (oldAttrs: {
+      buildInputs = oldAttrs.buildInputs ++ [ pkgs.makeWrapper ];
+      postInstall = ''
+        wrapProgram "$out/bin/tsun" \
+        --prefix NODE_PATH : ${self.typescript}/lib/node_modules
+      '';
+    });
+
     stf = super.stf.override {
       meta.broken = since "10";
+    };
+
+    vega-cli = super.vega-cli.override {
+      nativeBuildInputs = [ pkgs.pkgconfig ];
+      buildInputs = with pkgs; [
+        super.node-pre-gyp
+        pixman
+        cairo
+        pango
+        libjpeg
+      ];
+    };
+
+    vega-lite = super.vega-lite.override {
+        # npx tries to install vega from scratch at vegalite runtime if it
+        # can't find it. We thus replace it with a direct call to the nix
+        # derivation. This might not be necessary anymore in future vl
+        # versions: https://github.com/vega/vega-lite/issues/6863.
+        postInstall = ''
+          substituteInPlace $out/lib/node_modules/vega-lite/bin/vl2pdf \
+            --replace "npx -p vega vg2pdf"  "${self.vega-cli}/bin/vg2pdf"
+          substituteInPlace $out/lib/node_modules/vega-lite/bin/vl2svg \
+            --replace "npx -p vega vg2svg"  "${self.vega-cli}/bin/vg2svg"
+          substituteInPlace $out/lib/node_modules/vega-lite/bin/vl2png \
+            --replace "npx -p vega vg2png"  "${self.vega-cli}/bin/vg2png"
+        '';
     };
 
     webtorrent-cli = super.webtorrent-cli.override {
@@ -154,12 +207,17 @@ let
         # https://sharp.pixelplumbing.com/install
         vips
 
+        libsecret
+        self.node-gyp-build
         self.node-pre-gyp
       ];
     };
 
     thelounge = super.thelounge.override {
       buildInputs = [ self.node-pre-gyp ];
+      postInstall = ''
+        echo /var/lib/thelounge > $out/lib/node_modules/thelounge/.thelounge_home
+      '';
     };
   };
 in self

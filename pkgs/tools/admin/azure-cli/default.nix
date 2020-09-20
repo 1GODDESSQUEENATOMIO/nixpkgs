@@ -1,12 +1,12 @@
 { stdenv, lib, python, fetchFromGitHub, installShellFiles }:
 
 let
-  version = "2.5.1";
+  version = "2.11.1";
   src = fetchFromGitHub {
     owner = "Azure";
     repo = "azure-cli";
     rev = "azure-cli-${version}";
-    sha256 = "129v01da0whayqi9nvrfnlrq10mn5j096k43xl72214nk7iliwfy";
+    sha256 = "11jmgc73b0w725rq89j6hk6gh67nfdbzp3rmywmrnah683d6xbpx";
   };
 
   # put packages that needs to be overriden in the py package scope
@@ -105,10 +105,13 @@ py.pkgs.toPythonApplication (py.pkgs.buildAzureCliPackage {
     azure-mgmt-sql
     azure-mgmt-sqlvirtualmachine
     azure-mgmt-storage
+    azure-mgmt-synapse
     azure-mgmt-trafficmanager
     azure-mgmt-web
     azure-multiapi-storage
     azure-storage-blob
+    azure-synapse-accesscontrol
+    azure-synapse-spark
     colorama
     cryptography
     Fabric

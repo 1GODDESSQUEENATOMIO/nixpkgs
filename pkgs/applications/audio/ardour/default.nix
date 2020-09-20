@@ -8,7 +8,7 @@
 , curl
 , dbus
 , doxygen
-, ffmpeg
+, ffmpeg_3
 , fftw
 , fftwSinglePrec
 , flac
@@ -55,13 +55,13 @@
 }:
 stdenv.mkDerivation rec {
   pname = "ardour";
-  version = "6.0";
+  version = "6.2";
 
   # don't fetch releases from the GitHub mirror, they are broken
   src = fetchgit {
     url = "git://git.ardour.org/ardour/ardour.git";
     rev = version;
-    sha256 = "162jd96zahl05fdmjwvpdfjxbhd6ifbav6xqa0vv6rsdl4zk395q";
+    sha256 = "17jxbqavricy01x4ymq6d302djsqfnv84m7dm4fd8cpka0dqjp1y";
   };
 
   patches = [
@@ -87,7 +87,7 @@ stdenv.mkDerivation rec {
     cppunit
     curl
     dbus
-    ffmpeg
+    ffmpeg_3
     fftw
     fftwSinglePrec
     flac
@@ -149,8 +149,8 @@ stdenv.mkDerivation rec {
     sed 's|/usr/include/libintl.h|${glibc.dev}/include/libintl.h|' -i wscript
     patchShebangs ./tools/
     substituteInPlace libs/ardour/video_tools_paths.cc \
-      --replace 'ffmpeg_exe = X_("");' 'ffmpeg_exe = X_("${ffmpeg}/bin/ffmpeg");' \
-      --replace 'ffprobe_exe = X_("");' 'ffprobe_exe = X_("${ffmpeg}/bin/ffprobe");'
+      --replace 'ffmpeg_exe = X_("");' 'ffmpeg_exe = X_("${ffmpeg_3}/bin/ffmpeg");' \
+      --replace 'ffprobe_exe = X_("");' 'ffprobe_exe = X_("${ffmpeg_3}/bin/ffprobe");'
   '';
 
   postInstall = ''

@@ -10,8 +10,7 @@ rustPlatform.buildRustPackage rec {
     owner  = "sharkdp";
     repo   = pname;
     rev    = "v${version}";
-    sha256 = "1pjdvhldmjpy8ymb7r91y18hj5dx1iygszsfwkd66v9rncjigd07";
-    fetchSubmodules = true;
+    sha256 = "0pjdba2c6p7ldgx2yfffxqlpasrcfrlkw63m1ma34zdq0f287w3p";
   };
 
   cargoSha256 = "0myz06hjv4hwzmyqa9l36i9j9d213a0mnq8rvx6wyff7mr9zk99i";
@@ -36,7 +35,6 @@ rustPlatform.buildRustPackage rec {
     description = "A cat(1) clone with syntax highlighting and Git integration";
     homepage    = "https://github.com/sharkdp/bat";
     license     = with licenses; [ asl20 /* or */ mit ];
-    maintainers = with maintainers; [ dywedir lilyball ];
-    platforms   = platforms.all;
+    maintainers = with maintainers; [ dywedir lilyball zowoq ];
   };
 }

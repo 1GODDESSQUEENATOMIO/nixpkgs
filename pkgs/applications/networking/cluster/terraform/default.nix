@@ -48,6 +48,7 @@ let
           kalbasit
           marsam
           babariviere
+          Chili-Man
         ];
       };
     } // attrs');
@@ -118,8 +119,8 @@ in rec {
   terraform_0_11-full = terraform_0_11.full;
 
   terraform_0_12 = pluggable (generic {
-    version = "0.12.26";
-    sha256 = "1f0n2zdk1jyqcmchsprqfkiivmsmdlpsf5b7x5f1dmvms9jw3268";
+    version = "0.12.29";
+    sha256 = "18i7vkvnvfybwzhww8d84cyh93xfbwswcnwfrgvcny1qwm8rsaj8";
     patches = [
         ./provider-path.patch
         (fetchpatch {
@@ -127,6 +128,13 @@ in rec {
             url = "https://github.com/hashicorp/terraform/commit/cd65b28da051174a13ac76e54b7bb95d3051255c.patch";
             sha256 = "1k70kk4hli72x8gza6fy3vpckdm3sf881w61fmssrah3hgmfmbrs";
         }) ];
+    passthru = { inherit plugins; };
+  });
+
+  terraform_0_13 = pluggable (generic {
+    version = "0.13.3";
+    sha256 = "1bjgsabkyh3xf4gdp41mwhw6bpmjg45bnq2hk522glk02n2xngpw";
+    patches = [ ./provider-path.patch ];
     passthru = { inherit plugins; };
   });
 

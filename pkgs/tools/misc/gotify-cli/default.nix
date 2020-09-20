@@ -13,9 +13,15 @@ buildGoModule rec {
 
   vendorSha256 = "1lhhsf944gm1p6qxn05g2s3hdnra5dggj7pdrdq6qr6r2xg7f5qh";
 
+  doCheck = false;
+
   postInstall = ''
     mv $out/bin/cli $out/bin/gotify
   '';
+
+  buildFlagsArray = [
+    "-ldflags=-X main.Version=${version} -X main.Commit=${version} -X main.BuildDate=1970-01-01"
+  ];
 
   meta = with lib; {
     license = licenses.mit;

@@ -6,7 +6,7 @@
 , qtquickcontrols2, qtscript, qtsvg , qttools, qtwayland, qtwebchannel
 , qtwebengine
 # Runtime
-, coreutils, libjpeg_turbo, pciutils, procps, utillinux
+, coreutils, faac, pciutils, procps, utillinux
 , pulseaudioSupport ? true, libpulseaudio ? null
 }:
 
@@ -15,11 +15,11 @@ assert pulseaudioSupport -> libpulseaudio != null;
 let
   inherit (stdenv.lib) concatStringsSep makeBinPath optional;
 
-  version = "5.0.413237.0524";
+  version = "5.2.458699.0906";
   srcs = {
     x86_64-linux = fetchurl {
       url = "https://zoom.us/client/${version}/zoom_x86_64.tar.xz";
-      sha256 = "09hr31pzjgwaa898akl953k7fcshkq8r065i2047mk247bjy278k";
+      sha256 = "0cwai5v2m99cvw1dnysl88fi97dwm6rq7xv3y0ydgg3499n8cjpf";
     };
   };
 
@@ -40,7 +40,7 @@ in mkDerivation {
   nativeBuildInputs = [ autoPatchelfHook ];
 
   buildInputs = [
-    dbus glib libGL libX11 libXfixes libuuid libxcb libjpeg_turbo qtbase
+    dbus glib libGL libX11 libXfixes libuuid libxcb faac qtbase
     qtdeclarative qtgraphicaleffects qtlocation qtquickcontrols qtquickcontrols2
     qtscript qtwebchannel qtwebengine qtimageformats qtsvg qttools qtwayland
   ];
@@ -60,7 +60,6 @@ in mkDerivation {
         "zcacert.pem"
         "zoom"
         "zoom.sh"
-        "zoomlinux"
         "zopen"
       ];
     in ''
@@ -71,7 +70,10 @@ in mkDerivation {
       cp -ar ${files} $out/share/zoom-us
 
       # TODO Patch this somehow; tries to dlopen './libturbojpeg.so' from cwd
-      ln -s $(readlink -e "${libjpeg_turbo.out}/lib/libturbojpeg.so") $out/share/zoom-us/libturbojpeg.so
+      cp libturbojpeg.so $out/share/zoom-us/libturbojpeg.so
+
+      # Again, requires faac with a nonstandard filename.
+      ln -s $(readlink -e "${faac}/lib/libfaac.so") $out/share/zoom-us/libfaac1.so
 
       runHook postInstall
     '';
@@ -126,7 +128,7 @@ in mkDerivation {
     description = "zoom.us video conferencing application";
     license = stdenv.lib.licenses.unfree;
     platforms = builtins.attrNames srcs;
-    maintainers = with stdenv.lib.maintainers; [ danbst tadfisher ];
+    maintainers = with stdenv.lib.maintainers; [ danbst tadfisher doronbehar ];
   };
 
 }
