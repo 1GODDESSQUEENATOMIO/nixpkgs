@@ -1,3 +1,4 @@
+#G
 <p align="center">
   <a href="https://nixos.org/nixos"><img src="https://nixos.org/logo/nixos-hires.png" width="500px" alt="NixOS logo" /></a>
 </p>
